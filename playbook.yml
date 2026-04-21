@@ -1,0 +1,102 @@
+---
+- name: Configure EC2 for Kubernetes (microk8s) + ArgoCD
+  hosts: app_servers
+  become: yes
+
+  vars:
+    argocd_namespace: argocd
+    argocd_version: v2.10.0
+
+  tasks:
+
+    # ── System Updates ────────────────────────────────────────
+    - name: Update apt cache and upgrade packages
+      apt:
+        update_cache: yes
+        upgrade: dist
+        cache_valid_time: 3600
+
+    - name: Install required system packages
+      apt:
+        name:
+          - curl
+          - git
+          - snapd
+          - apt-transport-https
+          - ca-certificates
+          - software-properties-common
+        state: present
+
+    # ── Microk8s ─────────────────────────────────────────────
+    - name: Install microk8s via snap
+      snap:
+        name: microk8s
+        classic: yes
+        channel: "1.29/stable"
+
+    - name: Add ubuntu user to microk8s group
+      user:
+        name: ubuntu
+        groups: microk8s
+        append: yes
+
+    - name: Wait for microk8s to be ready
+      command: microk8s status --wait-ready
+      timeout: 120
+
+    - name: Enable microk8s addons (dns, storage, ingress)
+      command: microk8s enable dns storage ingress
+      register: addon_result
+      changed_when: "'Enabling' in addon_result.stdout"
+
+    - name: Create kubectl alias for ubuntu user
+      lineinfile:
+        path: /home/ubuntu/.bashrc
+        line: "alias kubectl='microk8s kubectl'"
+        state: present
+
+    # ── ArgoCD ───────────────────────────────────────────────
+    - name: Create ArgoCD namespace
+      command: microk8s kubectl create namespace {{ argocd_namespace }}
+      register: ns_result
+      failed_when: ns_result.rc != 0 and 'already exists' not in ns_result.stderr
+
+    - name: Install ArgoCD
+      command: >
+        microk8s kubectl apply -n {{ argocd_namespace }}
+        -f https://raw.githubusercontent.com/argoproj/argo-cd/{{ argocd_version }}/manifests/install.yaml
+
+    - name: Wait for ArgoCD server to be ready
+      command: >
+        microk8s kubectl wait --for=condition=available
+        deployment/argocd-server -n {{ argocd_namespace }} --timeout=180s
+
+    - name: Expose ArgoCD as NodePort on 30443
+      command: >
+        microk8s kubectl patch svc argocd-server -n {{ argocd_namespace }}
+        -p '{"spec": {"type": "NodePort", "ports": [{"port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+
+    - name: Get ArgoCD initial admin password
+      command: >
+        microk8s kubectl get secret argocd-initial-admin-secret
+        -n {{ argocd_namespace }}
+        -o jsonpath="{.data.password}"
+      register: argocd_pass_b64
+
+    - name: Decode and print ArgoCD password
+      debug:
+        msg: "ArgoCD admin password: {{ argocd_pass_b64.stdout | b64decode }}"
+
+    # ── App Namespace ─────────────────────────────────────────
+    - name: Create app namespace
+      command: microk8s kubectl create namespace taskmanager
+      register: app_ns
+      failed_when: app_ns.rc != 0 and 'already exists' not in app_ns.stderr
+
+    - name: Print setup complete message
+      debug:
+        msg: |
+          ✅ Setup complete!
+          - microk8s is running
+          - ArgoCD is available at https://{{ inventory_hostname }}:30443
+          - App namespace 'taskmanager' is ready
