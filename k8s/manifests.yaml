@@ -70,7 +70,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: i220766/taskmanager-backend:779dc101e25f22bbd616a27636ed395d00331dbe
+          image: i220766/taskmanager-backend:773ff509281c67741883a3c57742a6a2f3b5a609
           ports:
             - containerPort: 8000
           env:
@@ -125,7 +125,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: i220766/taskmanager-frontend:779dc101e25f22bbd616a27636ed395d00331dbe
+          image: i220766/taskmanager-frontend:773ff509281c67741883a3c57742a6a2f3b5a609
           ports:
             - containerPort: 80
 ---
