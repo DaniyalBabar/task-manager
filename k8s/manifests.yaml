@@ -70,7 +70,7 @@ spec:
     spec:
       containers:
         - name: backend
-          image: YOUR_DOCKERHUB_USERNAME/taskmanager-backend:latest  # updated by CI
+          image: i220766/taskmanager-backend:latest  # updated by CI
           ports:
             - containerPort: 8000
           env:
@@ -125,7 +125,7 @@ spec:
     spec:
       containers:
         - name: frontend
-          image: YOUR_DOCKERHUB_USERNAME/taskmanager-frontend:latest  # updated by CI
+          image: i220766/taskmanager-frontend:latest  # updated by CI
           ports:
             - containerPort: 80
 ---

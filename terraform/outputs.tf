@@ -1,4 +1,4 @@
 output "ec2_public_ip" {
   description = "Public IP address of the EC2 instance"
-  value       = "1.2.3.4" # This will get overridden by main.tf 
+  value       = aws_instance.app_server.public_ip
 }

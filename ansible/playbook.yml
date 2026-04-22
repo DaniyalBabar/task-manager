@@ -29,10 +29,7 @@
 
     # ── Microk8s ─────────────────────────────────────────────
     - name: Install microk8s via snap
-      snap:
-        name: microk8s
-        classic: yes
-        channel: "1.29/stable"
+      command: snap install microk8s --classic --channel=1.29/stable
 
     - name: Add ubuntu user to microk8s group
       user:
@@ -48,6 +45,9 @@
       command: microk8s enable dns storage ingress
       register: addon_result
       changed_when: "'Enabling' in addon_result.stdout"
+      retries: 5
+      delay: 15
+      until: addon_result.rc == 0
 
     - name: Create kubectl alias for ubuntu user
       lineinfile:
